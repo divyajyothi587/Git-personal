@@ -1,0 +1,76 @@
+======================================================
+1) A DaemonSet ensures that all (or some) Nodes run a copy of a Pod
+2) can deploy deployment, pods with daemonset by using 'nodeSelector'
+======================================================
+links ::
+https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
+======================================================
+yaml file template
+======================================================
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    vivasa: ldap
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      vivasa: ldap
+  template:
+    metadata:
+      labels:
+        vivasa: ldap
+    spec:
+      containers:
+        - 
+          image: "progrium/nginx"
+          imagePullPolicy: IfNotPresent
+          name: nginx
+          tty: true
+          stdin: true
+          env:
+            - name: "TERM"
+              value: "linux"
+
+          ports:
+            - containerPort: 80
+              name: endpoint
+      nodeSelector:
+          kubernetes.io/hostname: ubuntu
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  labels: 
+    vivasa: ldap
+  name: nginx
+spec: 
+  ports: 
+   - name: endpoint
+     nodePort: 32141
+     port: 32141
+     protocol: TCP
+     targetPort: 80
+  selector: 
+    vivasa: ldap
+  type: NodePort
+======================================================
+testing
+======================================================
+
+kubectl create -f daemon.yaml
+kubectl get nodes --show-labels
+kubectl get deployments
+kubectl get pods
+kubectl get services
+
+
+kubectl delete service nginx 
+kubectl delete deployments nginx
+======================================================

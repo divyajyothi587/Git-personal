@@ -1,0 +1,31 @@
+{{- if .Values.networkPolicy.enabled }}
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: {{ include "rabbitmq.fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+{{ include "labels.standard" . | indent 6 }}
+  ingress:
+    # Allow inbound connections
+    - ports:
+        - port: {{ .Values.service.port }}
+        - port: {{ .Values.service.tlsPort }}
+        - port: {{ .Values.service.managementPort }}
+        - port: {{ .Values.service.tlsmanagementPort }}
+      {{- if not .Values.networkPolicy.allowExternal }}
+      from:
+        - podSelector:
+            matchLabels:
+              {{ include "rabbitmq.fullname" . }}-client: "true"
+        - podSelector:
+            matchLabels:
+{{ include "labels.standard" . | indent 14 }}
+        {{- with .Values.networkPolicy.additionalRules }}
+{{ toYaml . | indent 8 }}
+        {{- end }}
+      {{- end }}
+{{- end }}

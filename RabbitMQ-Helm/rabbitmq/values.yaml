@@ -1,0 +1,101 @@
+# enable this for cluster configuration
+# if enabled then give replica count
+cluster:
+    enabled: false
+    replicaCount: 3
+
+# rabbitmq credentials for accessing
+# erlangCookie > this is okey even if you are not changing it
+rabbitmq:
+    username: rabbitmq
+    password: MySecurePass
+    erlangCookie: erlang-cookie=c-is-for-cookie-thats-good-enough-for-me
+
+# To mark a Pod as critical, set priorityClassName for that Pod to system-cluster-critical or system-node-critical.
+# system-node-critical is the highest available priority, even higher than system-cluster-critical
+# priorityClassName:
+
+# image detais
+image:
+    pullPolicy: Always
+    repository: rabbitmq
+    tag: 3.8.0-management-alpine
+
+# enable this for use ssl configuration of rabbitmq
+tls:
+    enabled: false
+    existingSecret: rabbitmq-cert
+
+# port number and details
+service:
+    type: LoadBalancer
+    distPort: 25672
+    port: 5672
+    tlsPort: 5671
+    managementPort: 15672
+    tlsmanagementPort: 15671
+    annotations: {}
+
+# persistence volume details
+persistence:
+    enabled: true
+    name: rabbitmq-pvc
+    accessMode: ReadWriteOnce
+    storageClass: ""
+    size: 10Gi
+
+# podDisruptionBudget for the pods
+podDisruptionBudget:
+    enabled: false
+    name: rabbitmq-pdb
+    minAvailable: 1
+    # maxUnavailable:
+
+# resources for the pods
+resources:
+    requests:
+        memory: 256Mi
+        cpu: 100m
+    # limit:
+    #     memory: 256Mi
+    #     cpu: 100m
+
+# networkPolicy for security
+networkPolicy:
+    ## Enable creation of NetworkPolicy resources. Only Ingress traffic is filtered for now.
+    ## ref: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+    ##
+    enabled: false
+
+    ## The Policy model to apply. When set to false, only pods with the correct
+    ## client label will have network access to the port RabbitMQ is listening
+    ## on. When true, RabbitMQ will accept connections from any source
+    ## (with the correct destination port).
+    ##
+    allowExternal: true
+
+    ## Additional NetworkPolicy Ingress "from" rules to set. Note that all rules are OR-ed.
+    ##
+    # additionalRules:
+    #  - matchLabels:
+    #    - role: frontend
+    #  - matchExpressions:
+    #    - key: role
+    #      operator: In
+    #      values:
+    #        - frontend
+
+# affinity configuration
+affinityenabled: false
+affinity:
+    podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - rabbitmq
+            topologyKey: "kubernetes.io/hostname"

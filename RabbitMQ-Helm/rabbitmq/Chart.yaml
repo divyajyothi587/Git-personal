@@ -1,0 +1,9 @@
+apiVersion: v1
+description: rabbitmq Deployment chart
+name: rabbitmq
+version: 1.0.0
+appVersion: 3.8.0
+keywords:
+  - rabbitmq
+  - amqp
+  - Kubernetes

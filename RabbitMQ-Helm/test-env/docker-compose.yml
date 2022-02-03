@@ -1,0 +1,42 @@
+version: '2'
+services:
+  upstream:
+    image: akhilrajmailbox/rabbitmq:3.8-management-alpine
+    container_name: upstream
+    hostname: upstream
+    ports:
+      - "5671:5671" #ssl amqps://user:pass@upstream:5671
+      - "5672:5672"
+      - "15671:15671" #ssl https://localhost:15671/
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=rabbitmq
+      - RABBITMQ_SSL_CERT_FILE=/upstream/server_certificate.pem
+      - RABBITMQ_SSL_KEY_FILE=/upstream/private_key.pem
+      - RABBITMQ_SSL_CA_FILE=/upstream/ca_certificate.pem
+      # - RABBITMQ_SSL_FAIL_IF_NO_PEER_CERT=true
+      # - RABBITMQ_SSL_VERIFY=verify_peer
+      - RABBITMQ_CTL_ERL_ARGS=-proto_dist inet_tls
+    volumes:
+      - ../upstream:/upstream
+  downstream:
+    image: akhilrajmailbox/rabbitmq:3.8-management-alpine
+    container_name: downstream
+    hostname: downstream
+    ports:
+      - "5673:5671" #ssl amqps://user:pass@upstream:5671
+      - "5674:5672"
+      - "15673:15671" #ssl https://localhost:15673/
+      - "15674:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=rabbitmq
+      - RABBITMQ_SSL_CERT_FILE=/downstream/client_certificate.pem
+      - RABBITMQ_SSL_KEY_FILE=/downstream/private_key.pem
+      - RABBITMQ_SSL_CA_FILE=/downstream/ca_certificate.pem
+      # - RABBITMQ_SSL_FAIL_IF_NO_PEER_CERT=true
+      # - RABBITMQ_SSL_VERIFY=verify_peer
+      - RABBITMQ_CTL_ERL_ARGS=-proto_dist inet_tls
+    volumes:
+      - ../downstream:/downstream

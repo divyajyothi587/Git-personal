@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "rabbitmq.fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: epmd
+      port: 4369
+      targetPort: epmd
+    - name: amqp
+      port: {{ .Values.service.port }}
+      targetPort: amqp
+    - name: management
+      port: {{ .Values.service.managementPort }}
+      targetPort: management
+    {{- if .Values.tls.enabled }}
+    - name: amqp-ssl
+      port: {{ .Values.service.tlsPort }}
+      targetPort: amqp-ssl
+    - name: management-ssl
+      port: {{ .Values.service.tlsmanagementPort }}
+      targetPort: management-ssl
+    {{- end }}
+  selector:
+    app: {{ include "rabbitmq.name" . }}
+    release: {{ .Release.Name }}

@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "rabbitmq.fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+spec:
+  serviceName: {{ include "rabbitmq.fullname" . }}
+  {{- if .Values.cluster.enabled }}
+  replicas: {{ .Values.cluster.replicaCount }}
+  {{- else }}
+  replicas: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "rabbitmq.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+{{ include "labels.standard" . | indent 8 }}
+    spec:
+      {{- if .Values.priorityClassName }}
+      priorityClassName: "{{ .Values.priorityClassName }}"
+      {{- end }}
+      # {{- if not .Values.persistence.enabled }}
+      # volumes:
+      #   - name: {{ .Values.persistence.name }}
+      #     emptyDir:
+      # {{- end }}
+      {{- if .Values.tls.enabled }}
+      volumes:
+        - name: {{ include "rabbitmq.fullname" . }}-certs
+          secret:
+            secretName: {{ .Values.tls.existingSecret }}
+            items:
+              - key: ca_certificate.pem
+                path: ca_certificate.pem
+              - key: server_certificate.pem
+                path: server_certificate.pem
+              - key: private_key.pem
+                path: private_key.pem
+      {{- end }}
+      containers:
+      - name: rabbitmq
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        {{- if .Values.cluster.enabled }}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - >
+                echo "[rabbitmq_federation,rabbitmq_federation_management,rabbitmq_management]." > /etc/rabbitmq/enabled_plugins;
+                if [ -z "$(grep rabbitmq /etc/resolv.conf)" ]; then
+                  sed "s/^search \([^ ]\+\)/search rabbitmq.\1 \1/" /etc/resolv.conf > /etc/resolv.conf.new;
+                  cat /etc/resolv.conf.new > /etc/resolv.conf;
+                  rm /etc/resolv.conf.new;
+                fi;
+                until rabbitmqctl node_health_check; do sleep 1; done;
+                if [[ "$HOSTNAME" != "rabbitmq-0" && -z "$(rabbitmqctl cluster_status | grep rabbitmq-0)" ]]; then
+                  rabbitmqctl stop_app;
+                  rabbitmqctl join_cluster rabbit@rabbitmq-0;
+                  rabbitmqctl start_app;
+                fi;
+                rabbitmqctl set_policy ha-all "." '{"ha-mode":"exactly","ha-params":3,"ha-sync-mode":"automatic"}'
+        {{- else }}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - >
+                echo "[rabbitmq_federation,rabbitmq_federation_management,rabbitmq_management]." > /etc/rabbitmq/enabled_plugins
+        {{- end }}
+        envFrom:
+          - secretRef:
+              name: {{ include "rabbitmq.fullname" . }}-secret
+        {{- if .Values.tls.enabled }}
+          - configMapRef:
+              name: {{ include "rabbitmq.fullname" . }}-cm
+        {{- end }}
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{- if .Values.tls.enabled }}
+        - name: RABBITMQ_CTL_ERL_ARGS
+          value: "-proto_dist inet_tls"
+        {{- end }}
+        # - name: HOSTNAME
+        #   valueFrom:
+        #     fieldRef:
+        #       fieldPath: metadata.name
+        # - name: RABBITMQ_NODENAME
+        #   value: "rabbit@$(HOSTNAME).rabbitmq.$(NAMESPACE).svc.cluster.local"
+        # - name: RABBITMQ_USE_LONGNAME
+        #   value: "true"
+        ports:
+          - name: epmd
+            containerPort: 4369
+          - name: amqp
+            containerPort: {{ .Values.service.port }}
+          - name: management
+            containerPort: {{ .Values.service.managementPort }}
+          - name: dist
+            containerPort: {{ .Values.service.distPort }}
+          {{- if .Values.tls.enabled }}
+          - name: amqp-ssl
+            containerPort: {{ .Values.service.tlsPort }}
+          - name: management-ssl
+            containerPort: {{ .Values.service.tlsmanagementPort }}
+          {{- end }}
+        volumeMounts:
+        - name: {{ .Values.persistence.name }}
+          mountPath: /var/lib/rabbitmq
+        {{- if .Values.tls.enabled }}
+        - name: {{ include "rabbitmq.fullname" . }}-certs
+          mountPath: /opt/rabbitmq/certs
+        {{- end }}
+        resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- if .Values.affinityenabled }}
+      {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+    {{- else }}
+      affinity:
+        podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - {{ include "rabbitmq.name" . }}
+                topologyKey: "kubernetes.io/hostname"
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: {{ .Values.persistence.name }}
+    spec:
+      accessModes:
+        - {{ .Values.persistence.accessMode | quote }}
+    {{- if .Values.persistence.storageClass }}
+    {{- if (eq "-" .Values.persistence.storageClass) }}
+      storageClassName: ""
+    {{- else }}
+      storageClassName: "{{ .Values.persistence.storageClass }}"
+    {{- end }}
+    {{- end }}
+      resources:
+        requests:
+          storage: "{{ .Values.persistence.size }}"
+  {{- end }}

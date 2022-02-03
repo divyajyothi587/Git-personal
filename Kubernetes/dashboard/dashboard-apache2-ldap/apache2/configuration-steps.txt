@@ -1,0 +1,12 @@
+apt-get update && apt-get install apache2 libldap-2.4-2
+a2dissite 000-default.conf 
+
+a2enmod authnz_ldap
+a2enmod proxy
+a2enmod proxy_http
+
+cd /etc/apache2/sites-available
+nano ldap.conf 
+a2ensite ldap.conf
+/etc/init.d/apache2 restart
+

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: prometheus
+  annotations: 
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    # service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "datamall-dev-publicsubnet1"
+  labels:
+    component: prometheus
+spec:
+  selector:
+    app: prometheus
+    component: server
+    release: prometheus
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 9090
+  type: LoadBalancer

@@ -1,0 +1,71 @@
+
+** Please be patient while the chart is being deployed **
+
+Credentials:
+
+    echo "Username      : {{ .Values.rabbitmq.username }}"
+    echo "Password      : {{ .Values.rabbitmq.password }}"
+    echo "ErLang Cookie : {{ .Values.rabbitmq.erlangCookie }}"
+
+To access for outside the cluster, perform the following steps:
+
+
+{{- if contains "LoadBalancer" .Values.service.type }}
+
+Obtain the LoadBalancer IP:
+
+    NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+    Watch the status with: 'kubectl get svc --namespace {{ .Release.Namespace }} -w {{ include "rabbitmq.fullname" . }}'
+
+    export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "rabbitmq.fullname" . }} -o jsonpath="{.status.loadBalancer.ingress[0].ip}")
+
+    {{- if .Values.tls.enabled }}
+
+To Access the RabbitMQ AMQPS port:
+
+    echo "URL : amqps://$SERVICE_IP:{{ .Values.service.tlsPort }}/"
+
+To Access the RabbitMQ Management interface SSL:
+
+    echo "URL : https://$SERVICE_IP:{{ .Values.service.tlsmanagementPort }}/"
+
+    {{- else }}
+
+To Access the RabbitMQ AMQP port:
+
+    echo "URL : amqp://$SERVICE_IP:{{ .Values.service.port }}/"
+
+To Access the RabbitMQ Management interface:
+
+    echo "URL : http://$SERVICE_IP:{{ .Values.service.managementPort }}/"
+
+    {{- end }}
+
+{{- else if contains "ClusterIP"  .Values.service.type }}
+
+    {{- if .Values.tls.enabled }}
+
+To Access the RabbitMQ AMQPS port:
+
+    echo "URL : amqps://127.0.0.1:{{ .Values.service.tlsPort }}/"
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "rabbitmq.fullname" . }} {{ .Values.service.tlsPort }}:{{ .Values.service.tlsPort }}
+
+To Access the RabbitMQ Management interface SSL:
+
+    echo "URL : https://127.0.0.1:{{ .Values.service.tlsmanagementPort }}/"
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "rabbitmq.fullname" . }} {{ .Values.service.tlsmanagementPort }}:{{ .Values.service.tlsmanagementPort }}
+
+    {{- else }}
+
+To Access the RabbitMQ AMQP port:
+
+    echo "URL : amqp://127.0.0.1:{{ .Values.service.port }}/"
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "rabbitmq.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+To Access the RabbitMQ Management interface:
+
+    echo "URL : http://127.0.0.1:{{ .Values.service.managerPort }}/"
+    kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "rabbitmq.fullname" . }} {{ .Values.service.managerPort }}:{{ .Values.service.managerPort }}
+
+    {{- end }}
+{{- end }}

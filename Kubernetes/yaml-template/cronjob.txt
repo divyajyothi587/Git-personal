@@ -1,0 +1,38 @@
+======================================================
+1) Schedule a job execution at a given point in time
+2) Create a periodic job, e.g. database backup
+
+======================================================
+links ::
+https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+https://blog.giantswarm.io/understanding-basic-kubernetes-concepts-v-daemon-sets-and-jobs/
+======================================================
+yaml file template
+======================================================
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: nginx
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: nginx
+            image: "progrium/nginx"
+            tty: true
+            stdin: true
+          restartPolicy: OnFailure
+
+
+======================================================
+testing
+======================================================
+
+kubectl create -f cron.yaml
+kubectl get cronjob
+kubectl delete cronjob nginx
+======================================================

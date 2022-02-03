@@ -1,0 +1,106 @@
+======================================================
+1) Deployments are intended to replace Replication Controllers
+2) They provide the same replication functions (through Replica Sets) and also the ability to rollout changes and roll them back if necessary.
+3) failover, round robin algorithm for cluistering of services
+4) scaleup and scaledown the pods by using 'kubectl scale'
+5) can update the yaml file configuration such as image, selector, resources etc... by using 'kubectl set'
+6) can deploy deployment,pods and services in different enviroment (some sort of isolation) with help of 'namespace'
+7) container can talk to each other with the metadata name (ping -c3 metadataname) eg :: (ping -c3 nginx)
+8) isolated deployment can talk to eachother with specific format (ping -c3 metadataname.namespace) eg :: (ping -c3 nginx.test)
+
+======================================================
+links ::
+https://www.mirantis.com/blog/kubernetes-replication-controller-replica-set-and-deployments-understanding-replication-options/
+https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+
+======================================================
+yaml file template
+======================================================
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: test
+  labels:
+    vivasa: ldap
+
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      vivasa: ldap
+  template:
+    metadata:
+      labels:
+        vivasa: ldap
+    spec:
+      containers:
+        - 
+          image: "progrium/nginx"
+          imagePullPolicy: IfNotPresent
+          name: nginx
+          tty: true
+          stdin: true
+          env:
+            - name: "TERM"
+              value: "linux"
+
+          ports:
+            - containerPort: 80
+              name: endpoint
+
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata: 
+  labels: 
+    vivasa: ldap
+  name: nginx
+  namespace: test
+spec: 
+  ports: 
+   - name: endpoint
+     nodePort: 32141
+     port: 32141
+     protocol: TCP
+     targetPort: 80
+  selector: 
+    vivasa: ldap
+  type: NodePort
+===========================
+for internal communication ::
+===========================
+spec: 
+  ports: 
+   - name: endpoint
+     port: 80
+     targetPort: 80
+  selector: 
+    vivasa: ldap
+  clusterIP: None  
+======================================================
+testing
+======================================================
+kubectl create -f nginx.yaml
+kubectl get deployments
+kubectl get services
+kubectl get rs
+kubectl describe deployment nginx
+
+
+docker ps | grep nginx
+docker exec -it 65c19505b6fc sh -c 'echo 1 > /usr/share/nginx/html/index.html'
+curl -L localhost:32141
+
+
+kubectl scale --replicas=1 deployment/nginx
+kubectl get deployments
+kubectl get services
+kubectl get rs
+kubectl describe deployment nginx
+
+kubectl delete services nginx
+kubectl delete  deployments nginx
+======================================================
