@@ -1,0 +1,82 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ include "hello-world.fullname" . }}
+  labels:
+{{ include "labels.standard" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "hello-world.name" . }}
+      release: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.maxSurge }}              # how many pods we can add at a time
+      maxUnavailable: {{ .Values.maxUnavailable }}  # how many pods can be unavailable during the rolling update
+  minReadySeconds: 5
+  revisionHistoryLimit: 1
+  template:
+    metadata:
+      labels:
+{{ include "labels.standard" . | indent 8 }}
+    spec:
+      volumes:
+      - name: data 
+        {{- if .Values.persistence.enabled }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistence.existingClaim | default (include "hello-world.fullname" .) }}
+        {{- else }}
+          emptyDir: {}
+        {{- end }}
+      containers:
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: hello-world
+          env:
+            - name: "MONGO_URL"
+              value: "{{ .Values.env.mongodb }}"
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+                path: /hellops
+                port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /hellops
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+          - mountPath: /data
+            name: data
+      initContainers:
+        - args:
+          - "-c"
+          - "{{ .Values.initContainers.entrypoint }}"
+          command: 
+          - /bin/bash
+          image: ubuntu:16.04
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          name: init-data
+          volumeMounts:
+            - mountPath: /data
+              name: data
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

@@ -1,0 +1,86 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: hello-world
+  namespace: hello-world
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # how many pods we can add at a time
+      maxUnavailable: 1  # how many pods can be unavailable during the rolling update
+  minReadySeconds: 5
+  revisionHistoryLimit: 1
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+        affinity:
+            podAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 95
+                  podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                        - mongodb
+                    topologyKey: kubernetes.io/hostname
+            podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app: hello-world
+                    topologyKey: kubernetes.io/hostname
+                  weight: 95
+        containers:
+        # - args:
+        #   - "-c"
+        #   - "custom commands"
+        #   command: 
+        #   - /bin/bash
+        - readinessProbe:
+            httpGet:
+                path: /hellops
+                port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /hellops
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          env:
+          - name: "MONGO_URL"
+            value: "mongodb.mongo.svc.cluster.local:27017"
+          image: akhilrajmailbox/golang:hello-world
+          imagePullPolicy: Always
+          name: hello-world
+          resources:
+            requests:
+              cpu: "100m"
+          volumeMounts:
+          - mountPath: /data
+            name: data
+        initContainers:
+          - args:
+            - "-c"
+            - "apt-get update && apt-get install wget -y && cd /data ; wget https://speed.hetzner.de/100MB.bin"
+            command: 
+            - /bin/bash
+            image: ubuntu:16.04
+            imagePullPolicy: IfNotPresent
+            name: init-data
+            volumeMounts:
+              - mountPath: /data
+                name: data
+        restartPolicy: Always
+        volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data-pvc

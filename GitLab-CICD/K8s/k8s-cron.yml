@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: data-collector
+spec:
+  schedule: "0 */1 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: data-collector
+            image: DOCKER_IMAGE_VALUE
+            imagePullPolicy: IfNotPresent
+            env:
+            - name : DEPLOYMENT_TIME
+              value: DEPLOYMENT_TIME_VALUE
+            - name : WEATHER_API_KEY
+              valueFrom:
+                configMapKeyRef:
+                    name: data-collector-cm
+                    key: WEATHER_API_KEY
+            - name : CITY_ID
+              valueFrom:
+                configMapKeyRef:
+                    name: data-collector-cm
+                    key: CITY_ID
+            - name : BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                    name: data-collector-cm
+                    key: BUCKET_NAME
+            - name : AWS_ACCESS_KEY_ID
+              valueFrom:
+                configMapKeyRef:
+                    name: data-collector-cm
+                    key: AWS_ACCESS_KEY_ID
+            - name : AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                configMapKeyRef:
+                    name: data-collector-cm
+                    key: AWS_SECRET_ACCESS_KEY
+            args:
+            - "-c"
+            - "python /code/code.py"
+            command: 
+            - /bin/sh
+          restartPolicy: OnFailure

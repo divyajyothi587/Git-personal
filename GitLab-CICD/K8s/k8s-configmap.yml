@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: data-collector-cm
+data:
+  WEATHER_API_KEY: "WEATHER_API_KEY_VALUE"
+  CITY_ID: "CITY_ID_VALUE"
+  BUCKET_NAME: "BUCKET_NAME_VALUE"
+  AWS_ACCESS_KEY_ID: "AWS_ACCESS_KEY_ID_VALUE"
+  AWS_SECRET_ACCESS_KEY: "AWS_SECRET_ACCESS_KEY_VALUE"

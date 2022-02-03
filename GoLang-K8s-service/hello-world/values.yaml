@@ -1,0 +1,72 @@
+replicaCount: 1
+maxSurge: 1
+maxUnavailable: 1
+
+image:
+  repository: akhilrajmailbox/golang
+  tag: hello-world
+  pullPolicy: Always
+
+initContainers:
+  entrypoint: "apt-get update && apt-get install wget -y && cd /data ; wget https://speed.hetzner.de/100MB.bin"
+
+service:
+  # Cluster IP or LoadBalancer
+  type: LoadBalancer
+  port: 8080
+
+env:
+  mongodb: hello-world-mongodb:27017
+
+mongodb:
+  enabled: true
+  usePassword: false
+  replicaSet:
+    enabled: false
+  persistence:
+    enabled: true
+    # storageClass: "-"
+    accessMode: ReadWriteOnce
+    size: 10Gi
+
+persistence:
+  enabled: true
+  annotations: {}
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  # existingClaim: ""
+
+resources: {}
+  ## We usually recommend not to specify default resources and to leave this as a conscious
+  ## choice for the user. This also increases chances charts run on environments with little
+  ## resources, such as Minikube. If you do want to specify resources, uncomment the following
+  ## lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+requests:
+  cpu: 100m
+
+nodeSelector: {}
+
+affinity:
+  podAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 95
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - mongodb
+        topologyKey: kubernetes.io/hostname
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app: hello-world
+        topologyKey: kubernetes.io/hostname
+      weight: 95

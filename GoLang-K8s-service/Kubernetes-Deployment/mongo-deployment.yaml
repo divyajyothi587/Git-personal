@@ -1,0 +1,64 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: mongo
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+        affinity:
+            podAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 95
+                  podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                        - hello-world
+                    topologyKey: kubernetes.io/hostname
+            podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                - podAffinityTerm:
+                    labelSelector:
+                      matchLabels:
+                        app: mongodb
+                    topologyKey: kubernetes.io/hostname
+                  weight: 95
+        containers:
+        - readinessProbe:
+            httpGet:
+                path: /
+                port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          # env:
+          # - name: "MONGO_INITDB_ROOT_USERNAME"
+          #   value: "root"
+          # - name: "MONGO_INITDB_ROOT_PASSWORD"
+          #   value: "mysecurepass"
+          image: mongo:latest
+          imagePullPolicy: Always
+          name: mongo
+          resources:
+            requests:
+              cpu: "100m"
+          volumeMounts:
+          - mountPath: /data/db
+            name: data
+        restartPolicy: Always
+        volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mongodb-pvc

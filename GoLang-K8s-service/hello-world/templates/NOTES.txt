@@ -1,0 +1,6 @@
+1. Get the application URL by running these commands:
+
+{{- if contains "LoadBalancer" .Values.service.type }}
+  export SERVICE_URL=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "hello-world.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  echo "You have to configure your hello-world service with : http://${SERVICE_URL}:{{ $.Values.service.port }}"
+{{- end }}
